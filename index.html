@@ -107,6 +107,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-off
     <svg id="board" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
       <rect class="tray-box" id="trayBox" rx=".6"/>
       <g class="tgt" id="gTarget"></g>
+      <g class="hint" id="gHint"></g>
       <g id="gPieces"></g>
     </svg>
     <div id="toast" hidden></div>
@@ -116,6 +117,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-off
     <button class="btn" id="bR" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5v5h-5"/><path d="M19.4 10A8 8 0 1 0 18 17.5"/></svg><span class="lb">오른쪽으로 돌리기</span></button>
     <button class="btn" id="bF" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 7l-5 5 5 5z"/><path d="M16 7l5 5-5 5z"/></svg><span>뒤집기</span></button>
     <span class="sep"></span>
+    <button class="btn" id="bHint" type="button"><span id="hintLb">힌트 2번 남음</span></button>
     <button class="btn" id="bReset" type="button"><span>다시 하기</span></button>
   </div>
 </section>
@@ -171,7 +173,7 @@ $('groups').addEventListener('click',e=>{const c=e.target.closest('.card');if(c)
 (function hero(){const egg=PZ.find(p=>p.id==='n1'),cols=slotColors(egg);let h='';egg.slots.forEach((sl,i)=>{h+=`<path transform="${tf(sl)}" d="${PD[sl.t].d}" style="fill:${cols[i]};stroke:var(--paper);stroke-width:.14;stroke-linejoin:round"/>`;});$('heroEgg').innerHTML=h;})();
 
 /* ---------- play state ---------- */
-const board=$('board'),gP=$('gPieces'),gT=$('gTarget');
+const board=$('board'),gP=$('gPieces'),gT=$('gTarget'),gH=$('gHint');
 let cur=null;      // {id,pz,pieces,sel,hints,revealed,done,lay}
 const drags=new Map();
 let animId=0;
@@ -195,13 +197,17 @@ function layout(){
 }
 function clampPiece(p){const v=cur.lay.vb;p.x=Math.min(v[0]+v[2]-1,Math.max(v[0]+1,p.x));p.y=Math.min(v[1]+v[3]-1,Math.max(v[1]+1,p.y));}
 function buildBoard(){
-  gT.innerHTML='';gP.innerHTML='';
+  gT.innerHTML='';gH.innerHTML='';gP.innerHTML='';
   if(cur.pz)cur.pz.slots.forEach(s=>gT.appendChild(el('path',{d:PD[s.t].d,transform:tf(s)})));
   cur.pieces.forEach(p=>{const g=el('g',{class:'piece','data-i':p.i});const path=el('path',{d:PD[p.t].d});path.style.fill=COLORS[p.i];g.appendChild(path);p.el=g;gP.appendChild(g);});
 }
 function draw(){
   cur.pieces.forEach(p=>{p.el.setAttribute('transform',tf(p));p.el.classList.toggle('sel',cur.sel===p.i);});
+  gH.innerHTML='';
+  if(cur.pz){const cols=slotColors(cur.pz);cur.hints.forEach(k=>{const s=cur.pz.slots[k];const e=el('path',{d:PD[s.t].d,transform:tf(s)});e.style.stroke=cols[k];gH.appendChild(e);});}
   const has=cur.sel!==null;$('bL').disabled=$('bR').disabled=$('bF').disabled=!has;
+  $('bHint').hidden=!cur.pz;
+  if(cur.pz){const left=HINT_MAX-cur.used;$('hintLb').textContent=left>0?`힌트 ${left}번 남음`:'힌트 다 썼어요';$('bHint').disabled=cur.done||left<=0;}
 }
 function toast(html,info){const t=$('toast');if(!html){t.hidden=true;return;}t.className=info?'info':'';t.innerHTML=html;t.hidden=false;}
 
@@ -286,7 +292,20 @@ function turn(k){if(cur.sel===null||animId)return;const p=cur.pieces[cur.sel];if
   if(k===0)p.f=-p.f;else p.a=(p.a+k*45+360)%360;if(!p.home)snap(p);draw();afterMove();}
 $('bL').onclick=()=>turn(-1);$('bR').onclick=()=>turn(1);$('bF').onclick=()=>turn(0);
 
-function reset(){if(animId){cancelAnimationFrame(animId);animId=0;}cur.pieces.forEach(p=>{p.home=true;p.f=1;p.a=45*Math.floor(Math.random()*8);delete p.sx;});cur.sel=null;cur.hints=[];cur.revealed=false;cur.done=false;toast('');layout();}
+/* ---------- hint / answer ---------- */
+function assignment(){ // which piece goes to which slot
+  const pz=cur.pz,used=new Set(),map=new Array(pz.slots.length).fill(null);
+  pz.slots.forEach((s,k)=>{const q=cur.pieces.find(q=>!used.has(q.i)&&q.t===s.t&&dist(q,s)<0.08&&sameOrient(q,s));if(q){used.add(q.i);map[k]=q;}});
+  pz.slots.forEach((s,k)=>{if(map[k])return;const q=cur.pieces.find(q=>!used.has(q.i)&&q.t===s.t);used.add(q.i);map[k]={piece:q,todo:true};});
+  return map;
+}
+const HINT_MAX=2;
+$('bHint').onclick=()=>{
+  if(!cur.pz||cur.done||cur.used>=HINT_MAX)return;const map=assignment();
+  const k=map.findIndex((m,i)=>m&&m.todo&&!cur.hints.includes(i));if(k<0)return;
+  cur.hints.push(k);cur.used++;draw();
+};
+function reset(){if(animId){cancelAnimationFrame(animId);animId=0;}cur.pieces.forEach(p=>{p.home=true;p.f=1;p.a=45*Math.floor(Math.random()*8);delete p.sx;});cur.sel=null;cur.revealed=false;cur.done=false;toast('');layout();}
 $('bReset').onclick=reset;
 
 /* ---------- navigation ---------- */
@@ -298,7 +317,7 @@ function show(id,restore){
   if(animId){cancelAnimationFrame(animId);animId=0;}drags.clear();
   if(ORDER.indexOf(id)<0){cur=null;$('play').hidden=true;$('home').hidden=false;renderHome();return;}
   const pz=PZ.find(p=>p.id===id)||null;
-  cur={id,pz,pieces:newPieces(),sel:null,hints:[],revealed:false,done:false,lay:null};
+  cur={id,pz,pieces:newPieces(),sel:null,hints:[],used:0,revealed:false,done:false,lay:null};
   if(restore&&restore.id===id&&Array.isArray(restore.pieces)&&restore.pieces.length===9){
     restore.pieces.forEach((r,i)=>{const p=cur.pieces[i];p.x=+r.x||0;p.y=+r.y||0;p.a=(+r.a||0)%360;p.f=r.f===-1?-1:1;p.home=!!r.home;});
     cur.revealed=!!restore.revealed;}
