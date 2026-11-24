@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>달걀퍼즐 놀이터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: one-screen app. home = grouped card grid; play = slim top bar, grid-paper board, big touch toolbar */
+  --paper:#edf2ee; --paper-2:#dfe7e1; --card:#ffffff; --ink:#22303a; --ink-soft:#5a6a74;
+  --shadow:#5b6770; --line:#c9d4cd; --accent:#e2553d; --ok:#2a8f58; --seam:#ffffff; --dot:#c3cec7;
+  --f-display:'Jua','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-body:'Gowun Dodum','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#161f26; --paper-2:#1e2931; --card:#25323b; --ink:#eef2ee; --ink-soft:#a7b5bd;
+    --shadow:#96a4ae; --line:#34444f; --accent:#f28360; --ok:#58bd82; --seam:#161f26; --dot:#2c3a44;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#161f26; --paper-2:#1e2931; --card:#25323b; --ink:#eef2ee; --ink-soft:#a7b5bd;
+  --shadow:#96a4ae; --line:#34444f; --accent:#f28360; --ok:#58bd82; --seam:#161f26; --dot:#2c3a44;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.5;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* ---------- home ---------- */
+#home{height:100%;overflow-y:auto;padding:clamp(16px,3vw,40px)}
+.home-in{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(20px,3vw,36px)}
+.hero{display:flex;align-items:center;gap:clamp(16px,3vw,32px);flex-wrap:wrap}
+.hero svg{width:clamp(84px,12vw,132px);height:auto;flex:none}
+.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(34px,5.4vw,60px);line-height:1.1;margin:0;letter-spacing:.01em;text-wrap:balance}
+.hero p{margin:.4em 0 0;color:var(--ink-soft);max-width:34em}
+.group h2{font-family:var(--f-display);font-weight:400;font-size:clamp(20px,2.4vw,26px);margin:0 0 4px;display:flex;align-items:baseline;gap:.6em;flex-wrap:wrap}
+.group h2 small{font-family:var(--f-body);font-size:15px;color:var(--ink-soft)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-top:10px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:8px;align-items:stretch;text-align:left;position:relative;transition:transform .12s,border-color .12s}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.card svg{width:100%;aspect-ratio:1/1;display:block}
+.card .nm{font-family:var(--f-display);font-size:18px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.card .done{font-family:var(--f-body);font-size:13px;color:var(--ok);border:1.5px solid var(--ok);border-radius:99px;padding:0 8px;white-space:nowrap}
+.card.free{border-style:dashed}
+
+/* ---------- play ---------- */
+#play{height:100%;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:10px;padding:10px clamp(12px,2vw,24px);border-bottom:2px solid var(--line);flex-wrap:wrap}
+.top h2{font-family:var(--f-display);font-weight:400;font-size:clamp(20px,2.6vw,30px);margin:0;flex:1;min-width:8em}
+.top .tip{color:var(--ink-soft);font-size:15px;flex-basis:100%;margin:-4px 0 0}
+.btn{background:var(--card);border:2px solid var(--line);border-radius:14px;min-height:52px;padding:8px 16px;font-family:var(--f-display);font-size:clamp(16px,1.6vw,21px);display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.sq{padding:8px 14px}
+.btn.go{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn svg{width:1.25em;height:1.25em;flex:none}
+#boardWrap{flex:1;min-height:0;position:relative;background-color:var(--paper);background-image:radial-gradient(var(--dot) 1.3px,transparent 1.6px);background-size:22px 22px}
+#board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none}
+.tgt path{fill:var(--shadow);stroke:var(--shadow);stroke-width:.1;stroke-linejoin:round}
+.tray-box{fill:none;stroke:var(--line);stroke-width:.06;stroke-dasharray:.35 .3}
+.piece path{stroke:var(--seam);stroke-width:.09;stroke-linejoin:round;cursor:grab}
+.piece.sel path{stroke:var(--ink);stroke-width:.16}
+.piece.drag path{cursor:grabbing}
+.hint path{fill:none;stroke-width:.14;stroke-dasharray:.4 .28;stroke-linejoin:round}
+.bar{display:flex;gap:10px;padding:10px clamp(12px,2vw,24px);border-top:2px solid var(--line);flex-wrap:wrap;align-items:center;justify-content:center}
+.bar .sep{flex:1;min-width:8px}
+#toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:var(--card);border:3px solid var(--ok);border-radius:20px;padding:12px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 26px rgba(0,0,0,.18);font-family:var(--f-display);font-size:clamp(20px,2.6vw,30px);max-width:calc(100% - 24px);flex-wrap:wrap;justify-content:center;z-index:3}
+#toast.info{border-color:var(--line);font-size:clamp(17px,2vw,22px)}
+@keyframes pop{0%{transform:translateX(-50%) scale(.7);opacity:0}70%{transform:translateX(-50%) scale(1.06)}100%{transform:translateX(-50%) scale(1);opacity:1}}
+#toast{animation:pop .35s ease-out}
+@media (prefers-reduced-motion: reduce){#toast{animation:none}.card{transition:none}}
+@media (max-width:560px){.btn{min-height:46px;padding:6px 12px}.btn .lb{display:none}.top .tip{display:none}}
+</style>
+</head>
+<body>
+<section id="home">
+  <div class="home-in">
+    <div class="hero">
+      <svg id="heroEgg" viewBox="-0.6 -0.6 11.2 14.2" aria-hidden="true"></svg>
+      <div>
+        <h1>달걀퍼즐 놀이터</h1>
+        <p>달걀을 자른 9조각을 옮기고, 돌리고, 뒤집어서 그림자와 똑같은 모양을 만들어 보세요. 그림자를 빈틈없이 채우면 정답입니다.</p>
+      </div>
+    </div>
+    <div id="groups"></div>
+  </div>
+</section>
+
+<section id="play" hidden>
+  <div class="top">
+    <button class="btn" id="bHome" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg><span>문제 목록</span></button>
+    <h2 id="pTitle"></h2>
+    <button class="btn sq" id="bPrev" type="button" aria-label="이전 문제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="btn sq" id="bNext" type="button" aria-label="다음 문제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    <p class="tip" id="pTip"></p>
+  </div>
+  <div id="boardWrap">
+    <svg id="board" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+      <rect class="tray-box" id="trayBox" rx=".6"/>
+      <g class="tgt" id="gTarget"></g>
+      <g id="gPieces"></g>
+    </svg>
+    <div id="toast" hidden></div>
+  </div>
+  <div class="bar">
+    <button class="btn" id="bL" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5v5h5"/><path d="M4.6 10A8 8 0 1 1 6 17.5"/></svg><span class="lb">왼쪽으로 돌리기</span></button>
+    <button class="btn" id="bR" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5v5h-5"/><path d="M19.4 10A8 8 0 1 0 18 17.5"/></svg><span class="lb">오른쪽으로 돌리기</span></button>
+    <button class="btn" id="bF" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 7l-5 5 5 5z"/><path d="M16 7l5 5-5 5z"/></svg><span>뒤집기</span></button>
+    <span class="sep"></span>
+    <button class="btn" id="bReset" type="button"><span>다시 하기</span></button>
+  </div>
+</section>
+<script>
+const DATA={"pieces":{"S":{"d":"M0.7282 1.7579L0.7282 -1.171A2.9289 2.9289 0 0 0 -1.3429 -0.3131Z","corners":[[0.7282,1.7579],[0.7282,-1.171],[-1.3429,-0.3131]],"area":3.3686},"C":{"d":"M-2.2425 3.9219L2.7575 -1.0781L0.6865 -3.1492A10.0 10.0 0 0 0 -2.2425 3.9219Z","corners":[[-2.2425,3.9219],[2.7575,-1.0781],[0.6865,-3.1492]],"area":14.2674},"T":{"d":"M-3.3333 1.6667L1.6667 1.6667L1.6667 -3.3333Z","corners":[[-3.3333,1.6667],[1.6667,1.6667],[1.6667,-3.3333]],"area":12.5},"D":{"d":"M0.2263 -2.2974L-2.7026 -2.2974A5.0 5.0 0 0 0 2.2974 2.7026L2.2974 -0.2263Z","corners":[[0.2263,-2.2974],[-2.7026,-2.2974],[2.2974,2.7026],[2.2974,-0.2263]],"area":17.4852},"t":{"d":"M-2.0711 -0.6904L0.0 1.3807L2.0711 -0.6904Z","corners":[[-2.0711,-0.6904],[0.0,1.3807],[2.0711,-0.6904]],"area":4.2893}},"puzzles":[{"w":13.2843,"h":17.6777,"slots":[{"t":"T","f":-1,"a":135,"x":7.0711,"y":16.4992},{"t":"C","f":1,"a":270,"x":3.1492,"y":11.8997},{"t":"D","f":1,"a":270,"x":9.3685,"y":11.4395},{"t":"D","f":-1,"a":225,"x":5.6066,"y":9.4287},{"t":"t","f":-1,"a":225,"x":6.0948,"y":12.1895},{"t":"S","f":1,"a":90,"x":10.9001,"y":8.4139},{"t":"C","f":-1,"a":180,"x":8.4557,"y":5.993},{"t":"T","f":1,"a":45,"x":9.7487,"y":3.2495},{"t":"S","f":-1,"a":270,"x":7.3842,"y":1.3429}],"id":"w1","group":"학습지","name":"달걀퍼즐 1-(1)"},{"w":21.2132,"h":12.0711,"slots":[{"t":"T","f":-1,"a":135,"x":12.0711,"y":10.8926},{"t":"D","f":1,"a":0,"x":9.7737,"y":5.8329},{"t":"D","f":-1,"a":0,"x":14.3685,"y":5.8329},{"t":"t","f":1,"a":0,"x":12.0711,"y":4.2259},{"t":"T","f":-1,"a":135,"x":17.6777,"y":2.3571},{"t":"S","f":1,"a":270,"x":15.9197,"y":0.7282},{"t":"C","f":-1,"a":315,"x":9.7833,"y":2.348},{"t":"C","f":-1,"a":270,"x":3.1492,"y":2.8491},{"t":"S","f":-1,"a":180,"x":6.3429,"y":2.3645}],"id":"w2","group":"학습지","name":"달걀퍼즐 1-(2)"},{"w":12.0711,"h":16.4645,"slots":[{"t":"T","f":-1,"a":135,"x":5.0,"y":15.286},{"t":"D","f":1,"a":0,"x":2.7026,"y":10.2263},{"t":"D","f":-1,"a":0,"x":7.2974,"y":10.2263},{"t":"C","f":-1,"a":270,"x":6.0781,"y":7.2425},{"t":"T","f":1,"a":0,"x":10.4044,"y":6.2622},{"t":"C","f":-1,"a":225,"x":1.7414,"y":5.2167},{"t":"t","f":-1,"a":225,"x":4.8816,"y":3.9052},{"t":"S","f":1,"a":90,"x":4.6869,"y":2.2007},{"t":"S","f":1,"a":45,"x":3.6571,"y":1.171}],"id":"w3","group":"학습지","name":"달걀퍼즐 2-(1)"},{"w":21.2132,"h":10.0,"slots":[{"t":"T","f":-1,"a":135,"x":10.6066,"y":8.8215},{"t":"D","f":-1,"a":180,"x":6.8447,"y":2.7026},{"t":"D","f":1,"a":315,"x":10.6066,"y":4.7135},{"t":"C","f":-1,"a":315,"x":11.8543,"y":1.7414},{"t":"t","f":1,"a":0,"x":14.1421,"y":3.6193},{"t":"C","f":1,"a":270,"x":17.2913,"y":5.6865},{"t":"T","f":1,"a":180,"x":3.7378,"y":6.6667},{"t":"S","f":1,"a":90,"x":5.9001,"y":7.2007},{"t":"S","f":1,"a":0,"x":1.3429,"y":6.171}],"id":"w4","group":"학습지","name":"달걀퍼즐 2-(2)"},{"w":15.0,"h":16.2132,"slots":[{"t":"T","f":-1,"a":135,"x":8.5355,"y":15.0347},{"t":"D","f":1,"a":315,"x":8.5355,"y":10.9267},{"t":"D","f":-1,"a":225,"x":8.5355,"y":7.3576},{"t":"C","f":-1,"a":180,"x":4.3135,"y":8.064},{"t":"T","f":1,"a":270,"x":3.3333,"y":3.7378},{"t":"S","f":-1,"a":270,"x":3.2421,"y":1.3429},{"t":"t","f":-1,"a":90,"x":11.3807,"y":9.1421},{"t":"C","f":-1,"a":45,"x":13.2586,"y":6.8543},{"t":"S","f":-1,"a":270,"x":13.2421,"y":3.4139}],"id":"p1","group":"연습","name":"연습 1"},{"w":15.0,"h":17.6777,"slots":[{"t":"T","f":-1,"a":135,"x":7.9289,"y":16.4992},{"t":"D","f":1,"a":315,"x":7.9289,"y":12.3911},{"t":"D","f":-1,"a":135,"x":4.6799,"y":9.1421},{"t":"t","f":1,"a":45,"x":7.4408,"y":9.6303},{"t":"T","f":1,"a":45,"x":11.4645,"y":10.3206},{"t":"C","f":-1,"a":315,"x":10.6411,"y":7.9546},{"t":"S","f":1,"a":0,"x":7.2007,"y":7.3842},{"t":"C","f":-1,"a":0,"x":3.6154,"y":3.1492},{"t":"S","f":1,"a":315,"x":1.171,"y":3.414}],"id":"p2","group":"연습","name":"연습 2"},{"w":12.9289,"h":15.6066,"slots":[{"t":"T","f":-1,"a":135,"x":7.9289,"y":14.4281},{"t":"D","f":1,"a":270,"x":10.2263,"y":9.3685},{"t":"C","f":1,"a":135,"x":11.1875,"y":4.3589},{"t":"D","f":1,"a":135,"x":6.4645,"y":7.3576},{"t":"t","f":-1,"a":225,"x":6.9526,"y":10.1184},{"t":"T","f":-1,"a":0,"x":4.5956,"y":10.4044},{"t":"C","f":-1,"a":225,"x":1.7414,"y":11.4299},{"t":"S","f":1,"a":0,"x":9.2718,"y":1.171},{"t":"S","f":1,"a":315,"x":8.242,"y":2.2008}],"id":"p3","group":"연습","name":"연습 3"},{"w":13.5355,"h":16.4645,"slots":[{"t":"D","f":1,"a":225,"x":11.7845,"y":12.0711},{"t":"C","f":-1,"a":180,"x":9.3135,"y":7.4574},{"t":"T","f":-1,"a":45,"x":9.4281,"y":3.5355},{"t":"S","f":1,"a":180,"x":10.7282,"y":15.2935},{"t":"T","f":-1,"a":270,"x":8.3333,"y":14.7978},{"t":"D","f":1,"a":135,"x":6.4645,"y":11.751},{"t":"t","f":-1,"a":135,"x":5.9763,"y":14.5118},{"t":"S","f":-1,"a":180,"x":4.2718,"y":15.2935},{"t":"C","f":-1,"a":180,"x":2.2425,"y":12.4574}],"id":"p4","group":"연습","name":"연습 4"},{"w":10.0,"h":12.9289,"slots":[{"t":"S","f":1,"a":0,"x":4.2718,"y":1.171},{"t":"S","f":1,"a":45,"x":5.7281,"y":1.171},{"t":"C","f":1,"a":0,"x":2.2425,"y":4.007},{"t":"C","f":-1,"a":0,"x":7.7575,"y":4.007},{"t":"T","f":1,"a":0,"x":3.3333,"y":6.2622},{"t":"T","f":-1,"a":0,"x":6.6667,"y":6.2622},{"t":"D","f":1,"a":0,"x":2.7026,"y":10.2263},{"t":"D","f":-1,"a":0,"x":7.2974,"y":10.2263},{"t":"t","f":1,"a":0,"x":5.0,"y":8.6193}],"id":"n1","group":"새 문제","name":"달걀"},{"w":12.9289,"h":15.6066,"slots":[{"t":"T","f":-1,"a":135,"x":5.0,"y":14.4281},{"t":"D","f":1,"a":0,"x":2.7026,"y":9.3685},{"t":"D","f":-1,"a":0,"x":7.2974,"y":9.3685},{"t":"t","f":1,"a":0,"x":5.0,"y":7.7615},{"t":"T","f":-1,"a":0,"x":1.6667,"y":5.4044},{"t":"C","f":-1,"a":0,"x":2.7575,"y":3.1492},{"t":"C","f":-1,"a":225,"x":8.8125,"y":4.3589},{"t":"S","f":-1,"a":0,"x":10.7282,"y":1.171},{"t":"S","f":-1,"a":45,"x":11.758,"y":2.2008}],"id":"n2","group":"새 문제","name":"수탉"},{"w":17.0711,"h":10.0,"slots":[{"t":"D","f":-1,"a":270,"x":14.3685,"y":2.7026},{"t":"D","f":1,"a":270,"x":14.3685,"y":7.2974},{"t":"t","f":-1,"a":270,"x":12.7615,"y":5.0},{"t":"T","f":-1,"a":270,"x":10.4044,"y":3.3333},{"t":"T","f":1,"a":270,"x":10.4044,"y":6.6667},{"t":"C","f":1,"a":270,"x":3.1492,"y":2.7575},{"t":"C","f":-1,"a":270,"x":3.1492,"y":7.2425},{"t":"S","f":-1,"a":225,"x":10.3131,"y":0.7281},{"t":"S","f":1,"a":315,"x":10.3131,"y":9.2719}],"id":"n3","group":"새 문제","name":"물고기"},{"w":17.9289,"h":15.6066,"slots":[{"t":"T","f":-1,"a":135,"x":7.9289,"y":14.4281},{"t":"D","f":1,"a":0,"x":5.6315,"y":9.3685},{"t":"D","f":-1,"a":0,"x":10.2263,"y":9.3685},{"t":"t","f":1,"a":0,"x":7.9289,"y":7.7615},{"t":"C","f":-1,"a":225,"x":11.7414,"y":4.3589},{"t":"T","f":-1,"a":90,"x":14.5956,"y":1.6667},{"t":"C","f":-1,"a":315,"x":5.6411,"y":5.8835},{"t":"S","f":-1,"a":180,"x":2.2007,"y":5.9001},{"t":"S","f":-1,"a":225,"x":1.171,"y":4.8703}],"id":"n4","group":"새 문제","name":"큰부리새"}]};
+(function(){
+'use strict';
+const PD=DATA.pieces, PZ=DATA.puzzles;
+const SET=['S','S','C','C','T','T','D','D','t'];
+const COLORS=['#3b7ddd','#62a4ee','#2f9e62','#58bd82','#e2553d','#f28360','#f39c1f','#f8bd52','#f1cf3a'];
+const TYPE_IDX={S:[0,1],C:[2,3],T:[4,5],D:[6,7],t:[8]};
+const CELL={S:4.4,C:8.2,T:7.4,D:7.4,t:4.8};
+const NS='http://www.w3.org/2000/svg';
+const $=id=>document.getElementById(id);
+const rad=a=>a*Math.PI/180;
+const el=(n,at)=>{const e=document.createElementNS(NS,n);for(const k in at)e.setAttribute(k,at[k]);return e;};
+const tf=p=>`translate(${p.x} ${p.y}) rotate(${p.a}) scale(${p.sx!==undefined?p.sx:p.f} 1)`;
+function xf(c,p){const x=c[0]*p.f,y=c[1],cs=Math.cos(rad(p.a)),sn=Math.sin(rad(p.a));return [p.x+cs*x-sn*y,p.y+sn*x+cs*y];}
+const corners=p=>PD[p.t].corners.map(c=>xf(c,p));
+const rel=p=>PD[p.t].corners.map(c=>xf(c,{x:0,y:0,a:p.a,f:p.f}));
+function sameOrient(p,s){if(p.t!==s.t)return false;const A=rel(p),B=rel(s);return A.every(a=>B.some(b=>Math.hypot(a[0]-b[0],a[1]-b[1])<0.06));}
+const dist=(p,s)=>Math.hypot(p.x-s.x,p.y-s.y);
+function slotColors(pz){const n={};return pz.slots.map(s=>{n[s.t]=(n[s.t]||0);return COLORS[TYPE_IDX[s.t][n[s.t]++]];});}
+
+/* ---------- saved progress (this browser only) ---------- */
+let solved={};
+try{solved=JSON.parse(localStorage.getItem('egg-puzzle-solved')||'{}')||{};}catch(e){solved={};}
+function saveSolved(){try{localStorage.setItem('egg-puzzle-solved',JSON.stringify(solved));}catch(e){}}
+
+/* ---------- home ---------- */
+function thumb(pz,colored){
+  const m=0.8,s=Math.max(pz.w,pz.h)+2*m,ox=(s-pz.w)/2,oy=(s-pz.h)/2;
+  const cols=slotColors(pz);
+  let h=`<svg viewBox="0 0 ${s} ${s}" aria-hidden="true">`;
+  pz.slots.forEach((sl,i)=>{h+=`<path transform="translate(${ox} ${oy}) ${tf(sl)}" d="${PD[sl.t].d}" style="fill:${colored?cols[i]:'var(--shadow)'};stroke:${colored?'var(--card)':'var(--shadow)'};stroke-width:${colored?0.12:0.14};stroke-linejoin:round"/>`;});
+  return h+'</svg>';
+}
+function renderHome(){
+  const groups=[['학습지','학습지 문제','달걀퍼즐 1 · 달걀퍼즐 2'],['연습','연습 그림','학습지 2쪽의 그림 네 개'],['새 문제','새 문제','같은 9조각으로 만든 다른 모양']];
+  let h='';
+  groups.forEach(g=>{
+    h+=`<div class="group"><h2>${g[1]} <small>${g[2]}</small></h2><div class="cards">`;
+    PZ.filter(p=>p.group===g[0]).forEach(p=>{
+      h+=`<button class="card" type="button" data-id="${p.id}">${thumb(p,!!solved[p.id])}<span class="nm">${p.name}${solved[p.id]?'<span class="done">맞춤</span>':''}</span></button>`;
+    });
+    if(g[0]==='새 문제')h+=`<button class="card free" type="button" data-id="free"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2.6v4.8M2.6 5h4.8" style="stroke:var(--ink-soft);stroke-width:.5;stroke-linecap:round"/></svg><span class="nm">자유롭게 만들기</span></button>`;
+    h+='</div></div>';
+  });
+  $('groups').innerHTML=h;
+  $('groups').style.cssText='display:flex;flex-direction:column;gap:28px';
+}
+$('groups').addEventListener('click',e=>{const c=e.target.closest('.card');if(c)go(c.dataset.id);});
+(function hero(){const egg=PZ.find(p=>p.id==='n1'),cols=slotColors(egg);let h='';egg.slots.forEach((sl,i)=>{h+=`<path transform="${tf(sl)}" d="${PD[sl.t].d}" style="fill:${cols[i]};stroke:var(--paper);stroke-width:.14;stroke-linejoin:round"/>`;});$('heroEgg').innerHTML=h;})();
+
+/* ---------- play state ---------- */
+const board=$('board'),gP=$('gPieces'),gT=$('gTarget');
+let cur=null;      // {id,pz,pieces,sel,hints,revealed,done,lay}
+const drags=new Map();
+let animId=0;
+
+function newPieces(){return SET.map((t,i)=>({i,t,x:0,y:0,a:45*Math.floor(Math.random()*8),f:1,home:true}));}
+function layout(){
+  const wrap=$('boardWrap'),cw=Math.max(200,wrap.clientWidth),ch=Math.max(200,wrap.clientHeight);
+  const pz=cur.pz,m=1.3,tw=pz?pz.w:13,th=pz?pz.h:11;
+  const sizes=SET.map(t=>CELL[t]);
+  function pack(W){let x=0,y=0,rh=0,mw=0;const pos=[];sizes.forEach(s=>{if(x>0&&x+s>W+1e-6){y+=rh;x=0;rh=0;}pos.push([x+s/2,y+s/2]);x+=s;rh=Math.max(rh,s);mw=Math.max(mw,x);});return{pos,H:y+rh,W:mw};}
+  let best=null;
+  [8.2,16.4,24.6,31.2].forEach(W=>{const p=pack(W),TW=m+tw+m+p.W+0.8,TH=Math.max(th+2*m,p.H+1.2),sc=Math.min(cw/TW,ch/TH);
+    if(!best||sc>best.sc){const y0=-(TH-th)/2;best={sc,vb:[-m,y0,TW,TH],tx:tw+m,ty:y0+(TH-p.H)/2,p};}});
+  [16.4,24.6,31.2,39.4,46,59.4].forEach(W=>{const p=pack(W),TW=Math.max(tw+2*m,p.W+1.2),TH=m+th+m+p.H+0.8,sc=Math.min(cw/TW,ch/TH);
+    if(sc>best.sc){const x0=-(TW-tw)/2;best={sc,vb:[x0,-m,TW,TH],tx:x0+(TW-p.W)/2,ty:th+m,p};}});
+  cur.lay=best;
+  board.setAttribute('viewBox',best.vb.join(' '));
+  const tb=$('trayBox');tb.setAttribute('x',best.tx-0.3);tb.setAttribute('y',best.ty-0.3);tb.setAttribute('width',best.p.W+0.6);tb.setAttribute('height',best.p.H+0.6);
+  cur.pieces.forEach(p=>{if(p.home){p.x=best.tx+best.p.pos[p.i][0];p.y=best.ty+best.p.pos[p.i][1];}else clampPiece(p);});
+  draw();
+}
+function clampPiece(p){const v=cur.lay.vb;p.x=Math.min(v[0]+v[2]-1,Math.max(v[0]+1,p.x));p.y=Math.min(v[1]+v[3]-1,Math.max(v[1]+1,p.y));}
+function buildBoard(){
+  gT.innerHTML='';gP.innerHTML='';
+  if(cur.pz)cur.pz.slots.forEach(s=>gT.appendChild(el('path',{d:PD[s.t].d,transform:tf(s)})));
+  cur.pieces.forEach(p=>{const g=el('g',{class:'piece','data-i':p.i});const path=el('path',{d:PD[p.t].d});path.style.fill=COLORS[p.i];g.appendChild(path);p.el=g;gP.appendChild(g);});
+}
+function draw(){
+  cur.pieces.forEach(p=>{p.el.setAttribute('transform',tf(p));p.el.classList.toggle('sel',cur.sel===p.i);});
+  const has=cur.sel!==null;$('bL').disabled=$('bR').disabled=$('bF').disabled=!has;
+}
+function toast(html,info){const t=$('toast');if(!html){t.hidden=true;return;}t.className=info?'info':'';t.innerHTML=html;t.hidden=false;}
+
+/* ---------- snapping & judging ---------- */
+function occupied(s,except){return cur.pieces.some(q=>q!==except&&q.t===s.t&&dist(q,s)<0.08&&sameOrient(q,s));}
+function snap(p){
+  const pz=cur.pz;
+  if(pz){let best=null;pz.slots.forEach(s=>{if(s.t!==p.t||!sameOrient(p,s)||occupied(s,p))return;const d=dist(p,s);if(d<1.0&&(!best||d<best.d))best={d,s};});
+    if(best){p.x=best.s.x;p.y=best.s.y;return;}}
+  const pts=[];
+  cur.pieces.forEach(q=>{if(q!==p&&!q.home)corners(q).forEach(c=>pts.push(c));});
+  if(pz)pz.slots.forEach(s=>corners(s).forEach(c=>pts.push(c)));
+  let b=null;corners(p).forEach(c=>pts.forEach(t=>{const d=Math.hypot(c[0]-t[0],c[1]-t[1]);if(d<0.45&&(!b||d<b.d))b={d,dx:t[0]-c[0],dy:t[1]-c[1]};}));
+  if(b){p.x+=b.dx;p.y+=b.dy;}
+}
+const paths={};for(const k in PD)paths[k]=new Path2D(PD[k].d);
+const cv=document.createElement('canvas');
+function raster(ctx,W,H,K,pad,list){
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';ctx.fillStyle='rgb(100,0,0)';
+  list.forEach(p=>{ctx.setTransform(K,0,0,K,K*pad,K*pad);ctx.translate(p.x,p.y);ctx.rotate(rad(p.a));ctx.scale(p.f,1);ctx.fill(paths[p.t]);});
+  const d=ctx.getImageData(0,0,W,H).data,n=W*H,out=new Float32Array(n);
+  for(let i=0;i<n;i++)out[i]=d[i*4]/100;return out;
+}
+function judge(){
+  const pz=cur.pz;if(!pz)return false;
+  const K=6,pad=1.5,W=Math.ceil((pz.w+2*pad)*K),H=Math.ceil((pz.h+2*pad)*K);
+  cv.width=W;cv.height=H;const ctx=cv.getContext('2d',{willReadFrequently:true});
+  const T=raster(ctx,W,H,K,pad,pz.slots),n=W*H;let tA=0;for(let i=0;i<n;i++){if(T[i]>1)T[i]=1;tA+=T[i];}
+  const sum=new Float32Array(n);
+  for(const p of cur.pieces){
+    const v=cur.lay.vb; if(p.x<-pad||p.y<-pad||p.x>pz.w+pad||p.y>pz.h+pad)return false;
+    const c=raster(ctx,W,H,K,pad,[p]);let a=0,o=0;for(let i=0;i<n;i++){a+=c[i];if(c[i]>T[i])o+=c[i]-T[i];sum[i]+=c[i];}
+    if(a<PD[p.t].area*K*K*0.9||o/a>0.06)return false;
+  }
+  let miss=0,over=0;for(let i=0;i<n;i++){const c=sum[i];if(c>1)over+=c-1;const cc=c>1?1:c;if(T[i]>cc)miss+=T[i]-cc;}
+  return miss/tA<0.015&&over/tA<0.015;
+}
+function afterMove(){
+  if(!cur.pz||cur.done)return;
+  if(judge()){
+    cur.done=true;cur.sel=null;cur.hints=[];draw();
+    if(!cur.revealed){solved[cur.id]=1;saveSolved();
+      toast(`<span>정답이에요! 9조각을 모두 맞췄어요.</span><button class="btn go" id="tNext" type="button">다음 문제</button>`);}
+    else toast(`<span>정답 모양이에요. 조각이 어디에 놓였는지 살펴보세요.</span><button class="btn" id="tRe" type="button">내 힘으로 다시 풀기</button>`,true);
+  }
+}
+$('toast').addEventListener('click',e=>{if(e.target.closest('#tNext'))step(1);if(e.target.closest('#tRe'))reset();});
+
+/* ---------- pointer handling ---------- */
+function pt(e){const m=board.getScreenCTM();if(!m)return[0,0];const q=new DOMPoint(e.clientX,e.clientY).matrixTransform(m.inverse());return[q.x,q.y];}
+board.addEventListener('pointerdown',e=>{
+  if(animId)return;
+  const g=e.target.closest('.piece');
+  if(!g){if(cur.sel!==null){cur.sel=null;draw();}return;}
+  e.preventDefault();
+  const p=cur.pieces[+g.dataset.i];
+  for(const d of drags.values())if(d.p===p)return;
+  const w=pt(e);
+  drags.set(e.pointerId,{p,ox:p.x-w[0],oy:p.y-w[1],sx:e.clientX,sy:e.clientY,moved:false});
+  try{board.setPointerCapture(e.pointerId);}catch(_){}
+  gP.appendChild(p.el);cur.sel=p.i;p.el.classList.add('drag');draw();
+});
+board.addEventListener('pointermove',e=>{
+  const d=drags.get(e.pointerId);if(!d)return;
+  if(!d.moved&&Math.hypot(e.clientX-d.sx,e.clientY-d.sy)<8)return;
+  d.moved=true;const w=pt(e);d.p.x=w[0]+d.ox;d.p.y=w[1]+d.oy;d.p.home=false;
+  d.p.el.setAttribute('transform',tf(d.p));
+});
+function endDrag(e,cancel){
+  const d=drags.get(e.pointerId);if(!d)return;drags.delete(e.pointerId);
+  const p=d.p;p.el.classList.remove('drag');
+  if(cur.done&&!cancel){cur.done=false;toast('');}
+  if(!d.moved&&!cancel){p.a=(p.a+45)%360;if(!p.home)snap(p);}
+  else{clampPiece(p);snap(p);}
+  draw();afterMove();
+}
+board.addEventListener('pointerup',e=>endDrag(e,false));
+board.addEventListener('pointercancel',e=>endDrag(e,true));
+
+function turn(k){if(cur.sel===null||animId)return;const p=cur.pieces[cur.sel];if(cur.done){cur.done=false;toast('');}
+  if(k===0)p.f=-p.f;else p.a=(p.a+k*45+360)%360;if(!p.home)snap(p);draw();afterMove();}
+$('bL').onclick=()=>turn(-1);$('bR').onclick=()=>turn(1);$('bF').onclick=()=>turn(0);
+
+function reset(){if(animId){cancelAnimationFrame(animId);animId=0;}cur.pieces.forEach(p=>{p.home=true;p.f=1;p.a=45*Math.floor(Math.random()*8);delete p.sx;});cur.sel=null;cur.hints=[];cur.revealed=false;cur.done=false;toast('');layout();}
+$('bReset').onclick=reset;
+
+/* ---------- navigation ---------- */
+const ORDER=PZ.map(p=>p.id).concat(['free']);
+function go(id){if(location.hash.slice(1)===id)show(id);else location.hash=id;}
+function step(d){const k=ORDER.indexOf(cur.id);go(ORDER[(k+d+ORDER.length)%ORDER.length]);}
+$('bHome').onclick=()=>go('home');$('bPrev').onclick=()=>step(-1);$('bNext').onclick=()=>step(1);
+function show(id,restore){
+  if(animId){cancelAnimationFrame(animId);animId=0;}drags.clear();
+  if(ORDER.indexOf(id)<0){cur=null;$('play').hidden=true;$('home').hidden=false;renderHome();return;}
+  const pz=PZ.find(p=>p.id===id)||null;
+  cur={id,pz,pieces:newPieces(),sel:null,hints:[],revealed:false,done:false,lay:null};
+  if(restore&&restore.id===id&&Array.isArray(restore.pieces)&&restore.pieces.length===9){
+    restore.pieces.forEach((r,i)=>{const p=cur.pieces[i];p.x=+r.x||0;p.y=+r.y||0;p.a=(+r.a||0)%360;p.f=r.f===-1?-1:1;p.home=!!r.home;});
+    cur.revealed=!!restore.revealed;}
+  $('home').hidden=true;$('play').hidden=false;
+  $('pTitle').textContent=pz?(pz.group==='학습지'?pz.name:pz.group+' · '+pz.name):'자유롭게 만들기';
+  $('pTip').textContent=pz?'조각을 끌어서 그림자 위에 놓으세요. 조각을 톡 누르면 45°씩 돌아갑니다.':'9조각으로 만들고 싶은 모양을 만들어 보세요. 조각을 톡 누르면 45°씩 돌아갑니다.';
+  toast('');buildBoard();layout();afterMove();
+}
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
+let rz=0;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(cur)layout();},80);});
+
+function snapshot(){return cur?{id:cur.id,revealed:cur.revealed,pieces:cur.pieces.map(p=>({x:p.x,y:p.y,a:p.a,f:p.f,home:p.home}))}:{id:'home'};}
+function start(data){const h=location.hash.slice(1);const id=(data&&data.id&&data.id!=='home'&&(!h||h===data.id))?data.id:h;show(id||'home',data);}
+const hot=window.claude&&window.claude.hot;
+try{if(hot&&hot.snapshot)hot.snapshot(snapshot);}catch(e){}
+if(hot&&hot.ready)hot.ready(start);else start((hot&&hot.data)||{});
+})();
+</script>
+</body>
+</html>
